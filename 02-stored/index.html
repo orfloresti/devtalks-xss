@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stored (Persistent)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-6">
+
+  <div class="w-full max-w-xl flex flex-col gap-4">
+    <div class="text-center">
+      <p class="text-gray-400 text-sm uppercase tracking-widest">Stored XSS Demo</p>
+      <h1 class="text-3xl font-bold text-white mt-1">Public Chat</h1>
+    </div>
+
+    <!-- Chat messages -->
+    <div id="chat" class="bg-gray-900 rounded-xl border border-gray-800 h-72 overflow-y-auto flex flex-col gap-3 p-4">
+      <p class="text-gray-600 text-sm text-center" id="empty-state">No messages yet.</p>
+    </div>
+
+    <!-- Input form -->
+    <form id="form" class="flex flex-col gap-2">
+      <input
+        id="username"
+        type="text"
+        placeholder="Username"
+        class="bg-gray-900 border border-gray-700 text-white text-sm rounded-lg px-4 py-2 placeholder-gray-500 focus:outline-none focus:border-red-500"
+      />
+      <div class="flex gap-2">
+        <input
+          id="message"
+          type="text"
+          placeholder="Write a message"
+          class="flex-1 bg-gray-900 border border-gray-700 text-white text-sm rounded-lg px-4 py-2 placeholder-gray-500 focus:outline-none focus:border-red-500"
+        />
+        <button
+          type="submit"
+          class="bg-red-600 hover:bg-red-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+        >Send</button>
+      </div>
+    </form>
+
+    <div class="flex justify-between items-center">
+      <p class="text-gray-600 text-xs">Try: <code class="text-red-400">&lt;img src=x onerror=alert('Fatality ☠️')&gt;</code></p>
+      <button id="clear" class="text-gray-500 hover:text-red-400 text-xs transition-colors">Clear all</button>
+    </div>
+  </div>
+
+  <script>
+    const chat = document.getElementById('chat');
+
+    function appendMessage({ username, message }) {
+      const empty = chat.querySelector('.empty-state');
+      if (empty) empty.remove();
+      const el = document.createElement('div');
+      el.className = 'flex flex-col';
+      // Intentionally vulnerable: innerHTML renders stored payloads as HTML
+      el.innerHTML = `
+        <span class="text-red-400 text-xs font-semibold">${username}</span>
+        <span class="text-gray-200 text-sm">${message}</span>
+      `;
+      chat.appendChild(el);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    async function loadMessages() {
+      const res = await fetch('/messages');
+      const messages = await res.json();
+      chat.innerHTML = messages.length === 0
+        ? '<p class="text-gray-600 text-sm text-center empty-state">No messages yet.</p>'
+        : '';
+      messages.forEach(appendMessage);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    // Real-time updates via SSE
+    const es = new EventSource('/events');
+    es.onmessage = (e) => {
+      const data = JSON.parse(e.data);
+      if (data.type === 'message') appendMessage(data);
+      if (data.type === 'clear') loadMessages();
+    };
+
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const message = document.getElementById('message').value.trim();
+      if (!username || !message) return;
+      await fetch('/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, message }),
+      });
+      document.getElementById('message').value = '';
+    });
+
+    document.getElementById('clear').addEventListener('click', async () => {
+      await fetch('/messages', { method: 'DELETE' });
+    });
+
+    loadMessages();
+  </script>
+
+</body>
+
+</html>
