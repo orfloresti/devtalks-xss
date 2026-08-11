@@ -6,14 +6,16 @@ const path = require('path');
 // In a real environment this could be: cloud metadata, an internal DB UI, etc.
 const internal = express();
 
-internal.get('/admin', (req, res) => {
-  res.json({
-    service: 'Internal Admin API',
-    db_password: 's3cr3t_db_p@ss!',
-    aws_key: 'AKIA3XAMPLEKEY00001',
-    aws_secret: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-    jwt_secret: 'super_secret_jwt_key_do_not_leak',
-  });
+internal.get('/env', (req, res) => {
+  res.type('text/plain').send([
+    'DATABASE_URL=postgresql://app_user:db_password_example@db.internal:5432/myapp_prod',
+    'AWS_ACCESS_KEY_ID=AWS_access_key_id_example',
+    'AWS_SECRET_ACCESS_KEY=aws_secret_access_key_example',
+    'STRIPE_SECRET_KEY=sk_live_stripe_secret_key_example',
+    'JWT_SECRET=jwt_secret_example_do_not_use_in_prod',
+    'REDIS_URL=redis://redis.internal:6379/0',
+    'SENDGRID_API_KEY=SG.sendgrid_api_key_example',
+  ].join('\n'));
 });
 
 internal.get('/health', (req, res) => res.json({ status: 'ok', internal: true }));
