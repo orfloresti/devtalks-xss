@@ -111,11 +111,11 @@ npm start
 
 **Attack payloads:**
 
-① **SSRF** — make the server fetch the internal admin service:
+① **SSRF** — make the server fetch the internal service's environment dump:
 ```
-http://localhost:3004/admin
+http://localhost:3004/env
 ```
-The server fetches its own internal service and returns DB passwords and AWS keys to the attacker.
+The server fetches its own internal service and returns DB passwords, AWS keys, and other secrets to the attacker.
 
 ② **XSS via SSRF** — the fetched response is rendered via `innerHTML`. If the response contains HTML with event handlers, they execute in the victim's browser:
 ```

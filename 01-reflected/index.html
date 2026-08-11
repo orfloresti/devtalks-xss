@@ -14,23 +14,17 @@
     <h1 id="output" class="text-5xl font-bold text-white">Hello, <span id="name-display">World</span>!</h1>
   </div>
 
-  <div class="flex flex-col items-center gap-2 w-full max-w-sm">
-    <input
-      id="name-input"
-      type="text"
-      placeholder="Type a text"
-      class="w-full bg-gray-900 border border-gray-700 text-white text-sm rounded-lg px-4 py-2 placeholder-gray-500 focus:outline-none focus:border-red-500"
-    />
-    <p class="text-gray-500 text-xs self-start">Try this payload: <code class="text-red-400">&lt;img src=x onerror=alert('Fatality ☠️')&gt;</code></p>
-  </div>
+  <p class="text-gray-500 text-xs">Try this payload: <code class="text-red-400">?name=&lt;img src=x onerror=alert('Fatality ☠️')&gt;</code></p>
 
   <script>
-    const input = document.getElementById('name-input');
     const display = document.getElementById('name-display');
-    input.addEventListener('input', () => {
-      // Intentionally vulnerable: innerHTML reflects raw input to demo XSS
-      display.innerHTML = input.value || 'World';
-    });
+
+    // Intentionally vulnerable: reflects raw URL param to demo reflected XSS
+    const params = new URLSearchParams(window.location.search);
+    const nameParam = params.get('name');
+    if (nameParam) {
+      display.innerHTML = nameParam;
+    }
   </script>
 </body>
 
