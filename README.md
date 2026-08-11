@@ -72,16 +72,70 @@ Or via URL directly:
 
 ---
 
+### 04 — XSS + CSRF (Account Takeover)
+
+**Location:** `04-xss-csrf/`
+
+A Node.js/Express app showing how XSS can be chained with a CSRF attack. A public comments section is vulnerable to stored XSS. The injected payload silently calls a state-changing endpoint (`POST /api/profile`) to change the victim's email — no CSRF token exists to block it.
+
+**How to run:**
+```bash
+cd 04-xss-csrf
+npm install
+npm start
+# Open http://localhost:3001
+```
+
+**Attack payload (post as a comment):**
+```html
+<img src=x onerror="fetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'pwned@evil.com'})})">
+```
+
+**Why it works:** XSS bypasses the Same-Origin Policy, so the injected `fetch()` runs in the victim's browser context with their session/cookies. The `/api/profile` endpoint has no CSRF token, so the forged request is accepted as legitimate.
+
+---
+
+### 05 — XSS + SSRF (Internal Service Exposure)
+
+**Location:** `05-xss-ssrf/`
+
+A Node.js/Express app with a "URL preview" feature: the server fetches any URL the user provides and returns the response body. A second service runs internally on `127.0.0.1:3004` with sensitive data (credentials, API keys) that is never meant to be publicly accessible.
+
+**How to run:**
+```bash
+cd 05-xss-ssrf
+npm install
+npm start
+# Open http://localhost:3003
+```
+
+**Attack payloads:**
+
+① **SSRF** — make the server fetch the internal admin service:
+```
+http://localhost:3004/admin
+```
+The server fetches its own internal service and returns DB passwords and AWS keys to the attacker.
+
+② **XSS via SSRF** — the fetched response is rendered via `innerHTML`. If the response contains HTML with event handlers, they execute in the victim's browser:
+```
+data:text/html,<img src=x onerror="alert('XSS via SSRF ☠️')">
+```
+
+**Why it works:** The `/api/fetch` endpoint has no allowlist and does not block private IP ranges. The attacker can reach any service the server itself can reach — including `localhost`, `169.254.169.254` (cloud metadata), or internal network hosts. The response is then rendered as HTML, enabling XSS.
+
+---
+
 ## Key Differences
 
-| | Reflected | Stored | DOM-Based |
-|---|---|---|---|
-| **Payload travels to server** | Yes (query param) | Yes (POST body) | No (`#` fragment never sent) |
-| **Persistence** | No — payload is in the URL | Yes — payload lives in the database | No — payload is in the URL hash |
-| **Victims** | Only users who click the crafted URL | Every user who loads the page | Only users who click the crafted URL |
-| **Execution origin** | Server reflects it into the HTML response | Server serves stored payload | Client JS reads hash and writes to DOM |
-| **Visible in server logs** | Yes | Yes | No |
-| **Server required** | No | Yes (Node.js) | No |
+| | Reflected | Stored | DOM-Based | XSS + CSRF | XSS + SSRF |
+|---|---|---|---|---|---|
+| **Payload travels to server** | Yes (query param) | Yes (POST body) | No (`#` fragment never sent) | Yes (stored comment) | Yes (URL to fetch) |
+| **Persistence** | No | Yes — database | No | Yes — database | No |
+| **Victims** | Crafted URL clicks | Every page visitor | Crafted URL clicks | Every page visitor | Crafted URL clicks |
+| **Execution origin** | Server reflects into HTML | Server serves stored payload | Client JS reads hash → DOM | Stored XSS forges API request | Server fetches attacker-controlled content → DOM |
+| **Visible in server logs** | Yes | Yes | No | Yes | Yes |
+| **Server required** | No | Yes (Node.js) | No | Yes (Node.js) | Yes (Node.js) |
 
 ---
 
@@ -90,3 +144,5 @@ Or via URL directly:
 - **Reflected:** Never pass user input through `document.write()`. Use `textContent` or encode output before insertion.
 - **Stored:** Sanitize/escape input before storing **and** before rendering. Use `textContent` instead of `innerHTML`, or a library like [DOMPurify](https://github.com/cure53/DOMPurify).
 - **DOM-Based:** Avoid writing `location.hash`, `location.search`, or any URL-sourced data to `innerHTML`. Use `textContent`, or sanitize with [DOMPurify](https://github.com/cure53/DOMPurify) before touching the DOM.
+- **XSS + CSRF:** Fix the XSS first (sanitize output). Additionally, protect state-changing endpoints with CSRF tokens (e.g. `csurf`) and validate the `Origin`/`Referer` header.
+- **XSS + SSRF:** Validate and allowlist URLs before the server fetches them. Block requests to private IP ranges (`127.0.0.0/8`, `169.254.0.0/16`, `10.0.0.0/8`). Never render server-fetched content via `innerHTML`.

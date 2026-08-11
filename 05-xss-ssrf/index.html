@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XSS + SSRF</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="min-h-screen bg-gray-950 flex flex-col items-center justify-center gap-6 p-6">
+
+  <div class="text-center">
+    <p class="text-gray-400 text-sm uppercase tracking-widest">XSS + SSRF Demo</p>
+    <h1 class="text-3xl font-bold text-white mt-1">URL Preview</h1>
+    <p class="text-gray-500 text-xs mt-1">The server fetches any URL you provide. The response is rendered in the page.</p>
+  </div>
+
+  <div class="w-full max-w-2xl flex flex-col gap-4">
+
+    <!-- URL input -->
+    <div class="flex gap-2">
+      <input
+        id="url-input"
+        type="text"
+        placeholder="Enter a URL to preview"
+        value="https://example.com"
+        class="flex-1 bg-gray-900 border border-gray-700 text-white text-sm rounded-lg px-4 py-2 placeholder-gray-500 focus:outline-none focus:border-red-500"
+      />
+      <button id="fetch-btn" class="bg-red-600 hover:bg-red-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors whitespace-nowrap">
+        Fetch URL
+      </button>
+    </div>
+
+    <!-- Response meta -->
+    <div id="meta" class="hidden text-gray-500 text-xs flex gap-4">
+      <span>URL: <span id="meta-url" class="text-gray-300"></span></span>
+      <span>Content-Type: <span id="meta-type" class="text-gray-300"></span></span>
+    </div>
+
+    <!-- Response body — XSS sink when content-type is HTML -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      <p class="text-gray-500 text-xs uppercase tracking-widest px-4 pt-3 pb-1">Server response</p>
+
+      <!-- Raw text view (safe) -->
+      <pre id="response-raw" class="text-gray-300 text-xs p-4 overflow-x-auto whitespace-pre-wrap break-all min-h-16">Waiting for a request...</pre>
+
+      <!-- Rendered HTML view — intentionally vulnerable: renders fetched HTML as-is -->
+      <div class="border-t border-gray-800">
+        <p class="text-gray-500 text-xs uppercase tracking-widest px-4 pt-3 pb-1">Rendered output <span class="text-red-400">(innerHTML — XSS sink)</span></p>
+        <div id="response-rendered" class="p-4 text-gray-300 text-sm min-h-16">—</div>
+      </div>
+    </div>
+
+    <!-- Attack payloads -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col gap-3">
+      <p class="text-gray-400 text-xs uppercase tracking-widest">Attack payloads</p>
+
+      <div class="flex flex-col gap-1">
+        <p class="text-gray-500 text-xs font-semibold">① SSRF — probe the internal admin service:</p>
+        <div class="flex items-center gap-2">
+          <code class="text-red-400 text-xs flex-1">http://localhost:3004/admin</code>
+          <button class="payload-btn text-gray-600 hover:text-red-400 text-xs transition-colors" data-url="http://localhost:3004/admin">Use</button>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <p class="text-gray-500 text-xs font-semibold">② SSRF — probe internal health endpoint:</p>
+        <div class="flex items-center gap-2">
+          <code class="text-red-400 text-xs flex-1">http://localhost:3004/health</code>
+          <button class="payload-btn text-gray-600 hover:text-red-400 text-xs transition-colors" data-url="http://localhost:3004/health">Use</button>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <p class="text-gray-500 text-xs font-semibold">③ XSS via SSRF — serve a page with a script and preview it:</p>
+        <p class="text-gray-600 text-xs">The server fetches the URL, the response body is rendered via <code class="text-gray-400">innerHTML</code>. If the response contains HTML with event handlers, they execute in the victim's browser.</p>
+        <code class="text-red-400 text-xs break-all">data:text/html,&lt;img src=x onerror="alert('XSS via SSRF ☠️')"&gt;</code>
+        <button class="payload-btn self-start text-gray-600 hover:text-red-400 text-xs transition-colors mt-1" data-url="data:text/html,<img src=x onerror=""alert('XSS via SSRF ☠️')"">Use</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    async function doFetch(url) {
+      document.getElementById('response-raw').textContent = 'Fetching...';
+      document.getElementById('response-rendered').innerHTML = '—';
+      document.getElementById('meta').classList.add('hidden');
+
+      const res = await fetch('/api/fetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+
+      const data = await res.json();
+
+      if (data.error) {
+        document.getElementById('response-raw').textContent = `Error: ${data.error}`;
+        return;
+      }
+
+      document.getElementById('meta').classList.remove('hidden');
+      document.getElementById('meta-url').textContent = data.url;
+      document.getElementById('meta-type').textContent = data.contentType;
+      document.getElementById('response-raw').textContent = data.body;
+      // Intentionally vulnerable: renders server-fetched content as HTML
+      document.getElementById('response-rendered').innerHTML = data.body;
+    }
+
+    document.getElementById('fetch-btn').addEventListener('click', () => {
+      const url = document.getElementById('url-input').value.trim();
+      if (url) doFetch(url);
+    });
+
+    document.querySelectorAll('.payload-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const url = btn.dataset.url;
+        document.getElementById('url-input').value = url;
+        doFetch(url);
+      });
+    });
+  </script>
+
+</body>
+
+</html>
