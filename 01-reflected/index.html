@@ -14,18 +14,9 @@
     <h1 id="output" class="text-5xl font-bold text-white">Hello, <span id="name-display">World</span>!</h1>
   </div>
 
-  <p class="text-gray-500 text-xs">Try this payload: <code class="text-red-400">?name=&lt;img src=x onerror=alert('Fatality ☠️')&gt;</code></p>
+  <p class="text-gray-500 text-xs">Try this payload: <code class="text-red-400">?name=&lt;img src=x onerror=alert(document.domain)&gt;</code></p>
 
-  <script>
-    const display = document.getElementById('name-display');
-
-    // Intentionally vulnerable: reflects raw URL param to demo reflected XSS
-    const params = new URLSearchParams(window.location.search);
-    const nameParam = params.get('name');
-    if (nameParam) {
-      display.innerHTML = nameParam;
-    }
-  </script>
+  <!-- Run via server.js: the server reflects ?name= directly into HTML (no sanitization) -->
 </body>
 
 </html>
