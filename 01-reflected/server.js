@@ -27,5 +27,5 @@ app.get('/', (req, res) => {
 </html>`);
 });
 
-const PORT = 3001;
+const PORT = 3000;
 app.listen(PORT, () => console.log(`Reflected XSS demo running at http://localhost:${PORT}`));

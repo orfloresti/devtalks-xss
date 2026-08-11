@@ -24,7 +24,7 @@ internal.listen(3004, '127.0.0.1', () =>
   console.log('Internal service listening on 127.0.0.1:3004 (not publicly reachable)')
 );
 
-// ── Public app (port 3003) ───────────────────────────────────────────────────
+// ── Public app (port 3000) ───────────────────────────────────────────────────
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
@@ -43,7 +43,7 @@ app.post('/api/fetch', async (req, res) => {
   }
 });
 
-const PORT = 3003;
+const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`XSS + SSRF demo running at http://localhost:${PORT}`);
   console.log(`Attack the internal service at http://localhost:3004/admin`);

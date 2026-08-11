@@ -51,5 +51,5 @@ app.delete('/api/reset', (req, res) => {
   res.json({ ok: true });
 });
 
-const PORT = 3001;
+const PORT = 3000;
 app.listen(PORT, () => console.log(`XSS + CSRF demo running at http://localhost:${PORT}`));

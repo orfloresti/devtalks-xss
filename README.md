@@ -83,7 +83,7 @@ A Node.js/Express app showing how XSS can be chained with a CSRF attack. A publi
 cd 04-xss-csrf
 npm install
 npm start
-# Open http://localhost:3001
+# Open http://localhost:3000
 ```
 
 **Attack payload (post as a comment):**
@@ -106,7 +106,7 @@ A Node.js/Express app with a "URL preview" feature: the server fetches any URL t
 cd 05-xss-ssrf
 npm install
 npm start
-# Open http://localhost:3003
+# Open http://localhost:3000
 ```
 
 **Attack payloads:**
